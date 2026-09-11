@@ -1,67 +1,19 @@
 // アプリ全体で使うデータの形を定義するファイル。
-// 1日ぶんの記録が DailyRecord、写真は別に PhotoBlob として保存する。
+// 1日ぶんの記録が DailyRecord、写真と動画は別に MediaBlob として保存する。
 
-/** 食事量 */
-export type MealAmount = 'all' | 'most' | 'half' | 'few' | 'none' | 'tube'
+/** 起きているかどうかの3段階 */
+export type AwakeLevel = 'asleep' | 'drowsy' | 'awake'
 
-/** 睡眠の様子 */
-export type SleepQuality = 'good' | 'normal' | 'light' | 'bad'
+/** 記録する3つの時間帯 */
+export type SlotKey = 'lastNight' | 'daytime' | 'visit'
 
-/** 受け答えのレベル */
-export type ResponseLevel = 'talked' | 'short' | 'gesture' | 'weak' | 'none'
+/** 時間帯ごとの様子。未記録は空文字 */
+export type Slots = Record<SlotKey, AwakeLevel | ''>
 
-/** できた / できなかった の3段階＋わからない */
-export type TriState = 'yes' | 'sometimes' | 'no' | 'unknown'
-
-/** 表情 */
-export type Expression = 'calm' | 'smile' | 'flat' | 'painful' | 'anxious' | 'irritated'
-
-/** リハビリの種類 */
-export type RehabType = 'pt' | 'ot' | 'st' | 'nurse'
-
-/** 体調・バイタル */
-export interface Vitals {
-  temperature: string
-  bpSystolic: string
-  bpDiastolic: string
-  pulse: string
-  spo2: string
-  mealMain: MealAmount | ''
-  mealSide: MealAmount | ''
-  hydration: string
-  excretion: string
-  sleep: SleepQuality | ''
-  note: string
-}
-
-/** 意識・会話の様子 */
-export interface Consciousness {
-  response: ResponseLevel | ''
-  recognizedMe: TriState | ''
-  expression: Expression | ''
-  words: string
-  note: string
-}
-
-/** リハビリ・できたこと */
-export interface Rehab {
-  types: RehabType[]
-  content: string
-  achievements: string
-  note: string
-}
-
-/** 医師・看護師から聞いた話 */
-export interface StaffTalk {
-  speaker: string
-  content: string
-  medicationChange: string
-  nextMeeting: string
-}
-
-/** 記録に添付した写真の参照（画像データ本体は別に保存する） */
-export interface PhotoRef {
+/** 記録に添付した写真・動画の参照（データ本体は別に保存する） */
+export interface MediaRef {
   id: string
+  kind: 'photo' | 'video'
   name: string
   type: string
   size: number
@@ -72,23 +24,16 @@ export interface DailyRecord {
   id: string
   /** YYYY-MM-DD */
   date: string
-  visitFrom: string
-  visitTo: string
-  /** 全体の調子 1〜5。未入力は null */
-  overall: number | null
-  vitals: Vitals
-  consciousness: Consciousness
-  rehab: Rehab
-  staffTalk: StaffTalk
-  photos: PhotoRef[]
-  freeNote: string
+  slots: Slots
+  note: string
+  media: MediaRef[]
   /** ISO文字列 */
   createdAt: string
   updatedAt: string
 }
 
-/** 写真の画像データ本体 */
-export interface PhotoBlob {
+/** 写真・動画のデータ本体 */
+export interface MediaBlob {
   id: string
   blob: Blob
 }
@@ -96,9 +41,11 @@ export interface PhotoBlob {
 /** 書き出し / 読み込みに使うファイルの形 */
 export interface ExportFile {
   app: 'hospital-log'
-  version: 1
+  version: number
   exportedAt: string
-  records: DailyRecord[]
-  /** 写真を含めて書き出した場合のみ。id -> data URL */
+  records: unknown[]
+  /** id -> data URL。version 2 以降 */
+  media?: Record<string, string>
+  /** id -> data URL。version 1 のときの写真 */
   photos?: Record<string, string>
 }

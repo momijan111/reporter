@@ -6,7 +6,6 @@ import { RecordDetail } from './components/RecordDetail'
 import { RecordForm } from './components/RecordForm'
 import { RecordList } from './components/RecordList'
 import { SettingsView } from './components/SettingsView'
-import { TrendChart } from './components/TrendChart'
 import { createEmptyRecord, todayString } from './lib/record'
 import { store } from './lib/storage'
 import type { DailyRecord } from './types'
@@ -69,8 +68,8 @@ export default function App() {
       `${record.date} の記録を削除します。元に戻せません。よろしいですか？`,
     )
     if (!ok) return
-    for (const photo of record.photos) {
-      await store.deletePhoto(photo.id)
+    for (const item of record.media) {
+      await store.deleteMedia(item.id)
     }
     await store.deleteRecord(record.id)
     await reload()
@@ -107,15 +106,12 @@ export default function App() {
         {!loading && loadError && <p className="error">{loadError}</p>}
 
         {!loading && !loadError && showList && (
-          <>
-            <TrendChart records={records} />
-            <RecordList
-              records={records}
-              keyword={keyword}
-              onKeywordChange={setKeyword}
-              onSelect={(id) => setView({ name: 'detail', id })}
-            />
-          </>
+          <RecordList
+            records={records}
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            onSelect={(id) => setView({ name: 'detail', id })}
+          />
         )}
 
         {!loading && view.name === 'detail' && selected && (

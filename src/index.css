@@ -10,6 +10,19 @@
   --accent: #2f7d62;
   --accent-weak: #e3f0ea;
   --danger: #b3261e;
+
+  /* 3段階の色。寝てる=青、少し起きてる=オレンジ、完全に起きてる=緑 */
+  --asleep: #3f63a8;
+  --asleep-bg: #e2eaf7;
+  --asleep-fg: #2b4577;
+  --drowsy: #c6821a;
+  --drowsy-bg: #fbeed4;
+  --drowsy-fg: #8a5a0d;
+  --awake: #2f9c6e;
+  --awake-bg: #d9f0e5;
+  --awake-fg: #1c6547;
+  --none-bg: #eceeed;
+  --none-fg: #7c8781;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(31, 42, 36, 0.06), 0 4px 14px rgba(31, 42, 36, 0.05);
 
@@ -32,6 +45,18 @@
     --accent-weak: #22332c;
     --danger: #ef9a93;
     --shadow: none;
+
+    --asleep: #7aa0e0;
+    --asleep-bg: #23304a;
+    --asleep-fg: #b9cef0;
+    --drowsy: #e0a648;
+    --drowsy-bg: #3a2f1b;
+    --drowsy-fg: #edc98c;
+    --awake: #55c496;
+    --awake-bg: #1e3a2e;
+    --awake-fg: #9fdfc1;
+    --none-bg: #2a312e;
+    --none-fg: #8d9993;
   }
 }
 

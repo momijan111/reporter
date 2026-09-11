@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { downloadBackup, importBackup } from '../lib/backup'
-import { Section } from './ui'
 
 export function SettingsView({
   recordCount,
@@ -13,7 +12,7 @@ export function SettingsView({
   onImported: () => void
   onBack: () => void
 }) {
-  const [includePhotos, setIncludePhotos] = useState(true)
+  const [includeMedia, setIncludeMedia] = useState(true)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -23,7 +22,7 @@ export function SettingsView({
     setError('')
     setMessage('')
     try {
-      const fileName = await downloadBackup(includePhotos)
+      const fileName = await downloadBackup(includeMedia)
       setMessage(`${fileName} を保存しました。`)
     } catch {
       setError('書き出しできませんでした。')
@@ -40,7 +39,7 @@ export function SettingsView({
     try {
       const result = await importBackup(file)
       setMessage(
-        `読み込みました。新規 ${result.added}件 / 上書き ${result.updated}件 / 写真 ${result.photos}枚`,
+        `読み込みました。新規 ${result.added}件 / 上書き ${result.updated}件 / 写真・動画 ${result.media}件`,
       )
       onImported()
     } catch (e) {
@@ -59,17 +58,19 @@ export function SettingsView({
         <h1 className="detail-date">設定・バックアップ</h1>
       </div>
 
-      <Section
-        title="バックアップを書き出す"
-        description={`記録は ${recordCount}件 あります。1つのJSONファイルにまとめて保存できます。機種変更のときや、念のための控えに使ってください。`}
-      >
+      <section className="section">
+        <h2 className="section-title">バックアップを書き出す</h2>
+        <p className="section-desc">
+          記録は {recordCount}件 あります。1つのファイルにまとめて保存できます。
+          機種変更のときや、念のための控えに使ってください。
+        </p>
         <label className="checkbox">
           <input
             type="checkbox"
-            checked={includePhotos}
-            onChange={(e) => setIncludePhotos(e.target.checked)}
+            checked={includeMedia}
+            onChange={(e) => setIncludeMedia(e.target.checked)}
           />
-          <span>写真も一緒に書き出す（ファイルが大きくなります）</span>
+          <span>写真・動画も一緒に書き出す（ファイルがかなり大きくなります）</span>
         </label>
         <button
           type="button"
@@ -79,13 +80,14 @@ export function SettingsView({
         >
           {busy ? '処理中…' : 'ファイルに書き出す'}
         </button>
-      </Section>
+      </section>
 
-      <Section
-        title="バックアップを読み込む"
-        description="書き出したJSONファイルを選ぶと、記録が復元されます。同じ記録があるときは上書きされます。"
-      >
-        <label className="file-button">
+      <section className="section">
+        <h2 className="section-title">バックアップを読み込む</h2>
+        <p className="section-desc">
+          書き出したファイルを選ぶと、記録が復元されます。同じ記録があるときは上書きされます。
+        </p>
+        <label className="capture">
           ファイルを選ぶ
           <input
             type="file"
@@ -96,25 +98,26 @@ export function SettingsView({
             }}
           />
         </label>
-      </Section>
+      </section>
 
       {message && <p className="notice">{message}</p>}
       {error && <p className="error">{error}</p>}
 
-      <Section title="このアプリについて">
+      <section className="section">
+        <h2 className="section-title">このアプリについて</h2>
         <p className="note-text">
-          記録はこのスマホの中（ブラウザのデータベース）だけに保存されます。インターネットには送られません。
+          記録はこのスマホの中だけに保存されます。インターネットには送られません。
         </p>
         <p className="note-text">
           そのため、ブラウザのデータを消したり端末を変えたりすると記録も消えます。ときどきバックアップを書き出しておくと安心です。
         </p>
         <p className="note-text">
-          ホーム画面に追加しておくと、ふつうのアプリのように開けます。電波がないところでも使えます。
+          動画は容量が大きいので、長く撮りすぎると端末の空き容量が足りなくなることがあります。
         </p>
         <p className="note-text">
           このアプリは家族の記録用です。医療の判断は必ず主治医にご相談ください。
         </p>
-      </Section>
+      </section>
     </div>
   )
 }

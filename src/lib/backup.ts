@@ -2,6 +2,7 @@
 // 機種を変えるときや、万一アプリのデータが消えたときの備え。
 
 import type { DailyRecord, ExportFile } from '../types'
+import { isLegacyRecord, migrateRecord } from './legacy'
 import { store } from './storage'
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -19,32 +20,32 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 }
 
 /** すべての記録を1つのJSONファイルにまとめる */
-export async function buildExportFile(includePhotos: boolean): Promise<ExportFile> {
+export async function buildExportFile(includeMedia: boolean): Promise<ExportFile> {
   const records = await store.listRecords()
   const data: ExportFile = {
     app: 'hospital-log',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     records,
   }
 
-  if (includePhotos) {
-    const photos: Record<string, string> = {}
+  if (includeMedia) {
+    const media: Record<string, string> = {}
     for (const record of records) {
-      for (const photo of record.photos) {
-        const blob = await store.getPhoto(photo.id)
-        if (blob) photos[photo.id] = await blobToDataUrl(blob)
+      for (const item of record.media) {
+        const blob = await store.getMedia(item.id)
+        if (blob) media[item.id] = await blobToDataUrl(blob)
       }
     }
-    data.photos = photos
+    data.media = media
   }
 
   return data
 }
 
 /** JSONファイルとして端末に保存する */
-export async function downloadBackup(includePhotos: boolean): Promise<string> {
-  const data = await buildExportFile(includePhotos)
+export async function downloadBackup(includeMedia: boolean): Promise<string> {
+  const data = await buildExportFile(includeMedia)
   const json = JSON.stringify(data, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -67,7 +68,7 @@ export async function downloadBackup(includePhotos: boolean): Promise<string> {
 export interface ImportResult {
   added: number
   updated: number
-  photos: number
+  media: number
 }
 
 function isExportFile(value: unknown): value is ExportFile {
@@ -94,24 +95,28 @@ export async function importBackup(file: File): Promise<ImportResult> {
 
   let added = 0
   let updated = 0
-  for (const record of parsed.records as DailyRecord[]) {
+  for (const row of parsed.records) {
+    // 前のバージョンで書き出したファイルも読み込めるようにする
+    const record: DailyRecord | null = isLegacyRecord(row)
+      ? migrateRecord(row)
+      : (row as DailyRecord)
     if (!record || typeof record.id !== 'string' || typeof record.date !== 'string') continue
     if (existingIds.has(record.id)) updated += 1
     else added += 1
     await store.saveRecord(record)
   }
 
-  let photos = 0
-  if (parsed.photos) {
-    for (const [id, dataUrl] of Object.entries(parsed.photos)) {
-      try {
-        await store.savePhoto(id, await dataUrlToBlob(dataUrl))
-        photos += 1
-      } catch {
-        // 1枚読めなくても残りは続ける
-      }
+  // version 1 のファイルでは photos、version 2 以降は media に入っている
+  const blobs = { ...(parsed.photos ?? {}), ...(parsed.media ?? {}) }
+  let media = 0
+  for (const [id, dataUrl] of Object.entries(blobs)) {
+    try {
+      await store.saveMedia(id, await dataUrlToBlob(dataUrl))
+      media += 1
+    } catch {
+      // 1つ読めなくても残りは続ける
     }
   }
 
-  return { added, updated, photos }
+  return { added, updated, media }
 }

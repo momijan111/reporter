@@ -3,36 +3,47 @@
 // あとでクラウド保存（Supabase など）を足すときは、
 // 同じ形の別の実装を作って store を差し替えるだけでよい。
 
-import type { DailyRecord, PhotoBlob } from '../types'
-import {
-  STORE_PHOTOS,
-  STORE_RECORDS,
-  dbDelete,
-  dbGet,
-  dbGetAll,
-  dbPut,
-} from './db'
+import type { DailyRecord, MediaBlob } from '../types'
+import { STORE_MEDIA, STORE_RECORDS, dbDelete, dbGet, dbGetAll, dbPut } from './db'
+import { isLegacyRecord, migrateRecord } from './legacy'
 
 export interface RecordStore {
   listRecords(): Promise<DailyRecord[]>
   getRecord(id: string): Promise<DailyRecord | undefined>
   saveRecord(record: DailyRecord): Promise<void>
   deleteRecord(id: string): Promise<void>
-  getPhoto(id: string): Promise<Blob | undefined>
-  savePhoto(id: string, blob: Blob): Promise<void>
-  deletePhoto(id: string): Promise<void>
+  getMedia(id: string): Promise<Blob | undefined>
+  saveMedia(id: string, blob: Blob): Promise<void>
+  deleteMedia(id: string): Promise<void>
 }
 
 /** スマホ（ブラウザ）の中だけに保存する実装 */
 export const localStore: RecordStore = {
   async listRecords() {
-    const records = await dbGetAll<DailyRecord>(STORE_RECORDS)
+    const rows = await dbGetAll<unknown>(STORE_RECORDS)
+    const records: DailyRecord[] = []
+
+    for (const row of rows) {
+      if (isLegacyRecord(row)) {
+        // 前のバージョンで保存した記録は、新しい形に変換して保存し直す
+        const migrated = migrateRecord(row)
+        if (migrated) {
+          await dbPut(STORE_RECORDS, migrated)
+          records.push(migrated)
+        }
+        continue
+      }
+      records.push(row as DailyRecord)
+    }
+
     // 新しい日付が先に来るように並べる
     return records.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   },
 
-  getRecord(id) {
-    return dbGet<DailyRecord>(STORE_RECORDS, id)
+  async getRecord(id) {
+    const row = await dbGet<unknown>(STORE_RECORDS, id)
+    if (row === undefined) return undefined
+    return isLegacyRecord(row) ? (migrateRecord(row) ?? undefined) : (row as DailyRecord)
   },
 
   saveRecord(record) {
@@ -43,17 +54,17 @@ export const localStore: RecordStore = {
     return dbDelete(STORE_RECORDS, id)
   },
 
-  async getPhoto(id) {
-    const row = await dbGet<PhotoBlob>(STORE_PHOTOS, id)
+  async getMedia(id) {
+    const row = await dbGet<MediaBlob>(STORE_MEDIA, id)
     return row?.blob
   },
 
-  savePhoto(id, blob) {
-    return dbPut(STORE_PHOTOS, { id, blob } satisfies PhotoBlob)
+  saveMedia(id, blob) {
+    return dbPut(STORE_MEDIA, { id, blob } satisfies MediaBlob)
   },
 
-  deletePhoto(id) {
-    return dbDelete(STORE_PHOTOS, id)
+  deleteMedia(id) {
+    return dbDelete(STORE_MEDIA, id)
   },
 }
 

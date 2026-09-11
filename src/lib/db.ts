@@ -5,7 +5,8 @@ const DB_NAME = 'hospital-log'
 const DB_VERSION = 1
 
 export const STORE_RECORDS = 'records'
-export const STORE_PHOTOS = 'photos'
+// 写真と動画の両方をここに入れる（名前は最初に作ったときのまま）
+export const STORE_MEDIA = 'photos'
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -17,8 +18,8 @@ function openDatabase(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_RECORDS)) {
         db.createObjectStore(STORE_RECORDS, { keyPath: 'id' })
       }
-      if (!db.objectStoreNames.contains(STORE_PHOTOS)) {
-        db.createObjectStore(STORE_PHOTOS, { keyPath: 'id' })
+      if (!db.objectStoreNames.contains(STORE_MEDIA)) {
+        db.createObjectStore(STORE_MEDIA, { keyPath: 'id' })
       }
     }
     request.onsuccess = () => resolve(request.result)

@@ -1,6 +1,6 @@
 // 記録そのものを扱う小さな便利関数たち。
 
-import { labelOf } from '../data/labels'
+import { SLOTS, awakeLabel } from '../data/labels'
 import type { DailyRecord } from '../types'
 
 export function newId(): string {
@@ -41,168 +41,37 @@ export function createEmptyRecord(date: string = todayString()): DailyRecord {
   return {
     id: newId(),
     date,
-    visitFrom: '',
-    visitTo: '',
-    overall: null,
-    vitals: {
-      temperature: '',
-      bpSystolic: '',
-      bpDiastolic: '',
-      pulse: '',
-      spo2: '',
-      mealMain: '',
-      mealSide: '',
-      hydration: '',
-      excretion: '',
-      sleep: '',
-      note: '',
-    },
-    consciousness: {
-      response: '',
-      recognizedMe: '',
-      expression: '',
-      words: '',
-      note: '',
-    },
-    rehab: {
-      types: [],
-      content: '',
-      achievements: '',
-      note: '',
-    },
-    staffTalk: {
-      speaker: '',
-      content: '',
-      medicationChange: '',
-      nextMeeting: '',
-    },
-    photos: [],
-    freeNote: '',
+    slots: { lastNight: '', daytime: '', visit: '' },
+    note: '',
+    media: [],
     createdAt: now,
     updatedAt: now,
   }
-}
-
-/** 一覧に出す短い要約。入力されているものだけをつなげる */
-export function summarize(record: DailyRecord): string {
-  const parts: string[] = []
-  const response = labelOf('response', record.consciousness.response)
-  if (response) parts.push(response)
-  const expression = labelOf('expression', record.consciousness.expression)
-  if (expression) parts.push(expression)
-  if (record.rehab.achievements) parts.push(record.rehab.achievements)
-  else if (record.rehab.types.length > 0) {
-    parts.push(record.rehab.types.map((t) => labelOf('rehab', t)).join('・'))
-  }
-  if (record.staffTalk.content) parts.push(`説明: ${record.staffTalk.content}`)
-  if (parts.length === 0 && record.freeNote) parts.push(record.freeNote)
-  return parts.join(' / ')
 }
 
 /** 記録を、そのままLINEなどに貼れる文章に変換する */
 export function toPlainText(record: DailyRecord): string {
   const lines: string[] = [`【${formatDateLong(record.date)}の様子】`]
 
-  if (record.visitFrom || record.visitTo) {
-    lines.push(`面会: ${record.visitFrom || '?'}〜${record.visitTo || '?'}`)
-  }
-  const overall = labelOf('overall', record.overall)
-  if (overall) lines.push(`全体の調子: ${overall}`)
-
-  const v = record.vitals
-  const vitalParts: string[] = []
-  if (v.temperature) vitalParts.push(`体温 ${v.temperature}℃`)
-  if (v.bpSystolic || v.bpDiastolic) {
-    vitalParts.push(`血圧 ${v.bpSystolic || '?'}/${v.bpDiastolic || '?'}`)
-  }
-  if (v.pulse) vitalParts.push(`脈拍 ${v.pulse}`)
-  if (v.spo2) vitalParts.push(`SpO2 ${v.spo2}%`)
-  if (v.mealMain) vitalParts.push(`主食 ${labelOf('meal', v.mealMain)}`)
-  if (v.mealSide) vitalParts.push(`副食 ${labelOf('meal', v.mealSide)}`)
-  if (v.hydration) vitalParts.push(`水分 ${v.hydration}ml`)
-  if (v.sleep) vitalParts.push(`睡眠 ${labelOf('sleep', v.sleep)}`)
-  if (vitalParts.length > 0) {
-    lines.push('', '■ 体調・バイタル', vitalParts.join(' / '))
-  }
-  if (v.excretion) lines.push(`排泄: ${v.excretion}`)
-  if (v.note) lines.push(`メモ: ${v.note}`)
-
-  const c = record.consciousness
-  const consciousnessParts: string[] = []
-  if (c.response) consciousnessParts.push(`受け答え: ${labelOf('response', c.response)}`)
-  if (c.recognizedMe) {
-    consciousnessParts.push(`こちらを認識: ${labelOf('tristate', c.recognizedMe)}`)
-  }
-  if (c.expression) consciousnessParts.push(`表情: ${labelOf('expression', c.expression)}`)
-  if (c.words) consciousnessParts.push(`話した言葉: ${c.words}`)
-  if (c.note) consciousnessParts.push(`メモ: ${c.note}`)
-  if (consciousnessParts.length > 0) {
-    lines.push('', '■ 意識・会話', ...consciousnessParts)
+  for (const slot of SLOTS) {
+    const label = awakeLabel(record.slots[slot.key])
+    if (label) lines.push(`${slot.label}: ${label}`)
   }
 
-  const r = record.rehab
-  const rehabParts: string[] = []
-  if (r.types.length > 0) {
-    rehabParts.push(`種類: ${r.types.map((t) => labelOf('rehab', t)).join('・')}`)
-  }
-  if (r.content) rehabParts.push(`内容: ${r.content}`)
-  if (r.achievements) rehabParts.push(`できたこと: ${r.achievements}`)
-  if (r.note) rehabParts.push(`メモ: ${r.note}`)
-  if (rehabParts.length > 0) {
-    lines.push('', '■ リハビリ・できたこと', ...rehabParts)
-  }
+  if (record.note.trim()) lines.push('', record.note.trim())
 
-  const s = record.staffTalk
-  const staffParts: string[] = []
-  if (s.speaker) staffParts.push(`話した人: ${s.speaker}`)
-  if (s.content) staffParts.push(`内容: ${s.content}`)
-  if (s.medicationChange) staffParts.push(`薬の変更: ${s.medicationChange}`)
-  if (s.nextMeeting) staffParts.push(`次回の予定: ${s.nextMeeting}`)
-  if (staffParts.length > 0) {
-    lines.push('', '■ 医師・看護師から聞いた話', ...staffParts)
-  }
-
-  if (record.freeNote) lines.push('', '■ そのほか', record.freeNote)
-  if (record.photos.length > 0) lines.push('', `写真 ${record.photos.length}枚`)
+  const photos = record.media.filter((m) => m.kind === 'photo').length
+  const videos = record.media.filter((m) => m.kind === 'video').length
+  const attachments: string[] = []
+  if (photos > 0) attachments.push(`写真 ${photos}枚`)
+  if (videos > 0) attachments.push(`動画 ${videos}本`)
+  if (attachments.length > 0) lines.push('', attachments.join(' / '))
 
   return lines.join('\n')
 }
 
 /** 入力が1つもない記録かどうか（保存ボタンの判定に使う） */
 export function isEmptyRecord(record: DailyRecord): boolean {
-  const { vitals: v, consciousness: c, rehab: r, staffTalk: s } = record
-  const texts = [
-    record.visitFrom,
-    record.visitTo,
-    record.freeNote,
-    v.temperature,
-    v.bpSystolic,
-    v.bpDiastolic,
-    v.pulse,
-    v.spo2,
-    v.mealMain,
-    v.mealSide,
-    v.hydration,
-    v.excretion,
-    v.sleep,
-    v.note,
-    c.response,
-    c.recognizedMe,
-    c.expression,
-    c.words,
-    c.note,
-    r.content,
-    r.achievements,
-    r.note,
-    s.speaker,
-    s.content,
-    s.medicationChange,
-    s.nextMeeting,
-  ]
-  return (
-    record.overall === null &&
-    r.types.length === 0 &&
-    record.photos.length === 0 &&
-    texts.every((t) => t.trim() === '')
-  )
+  const noSlots = SLOTS.every((slot) => record.slots[slot.key] === '')
+  return noSlots && record.note.trim() === '' && record.media.length === 0
 }

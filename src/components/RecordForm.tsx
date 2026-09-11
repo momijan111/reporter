@@ -1,21 +1,13 @@
 // 記録を入力する画面。
 
 import { useRef, useState } from 'react'
-import {
-  EXPRESSION_OPTIONS,
-  MEAL_OPTIONS,
-  OVERALL_OPTIONS,
-  REHAB_OPTIONS,
-  RESPONSE_OPTIONS,
-  SLEEP_OPTIONS,
-  TRISTATE_OPTIONS,
-} from '../data/labels'
+import { SLOTS } from '../data/labels'
 import { shrinkImage } from '../lib/image'
 import { isEmptyRecord, newId } from '../lib/record'
 import { store } from '../lib/storage'
-import type { DailyRecord } from '../types'
-import { PhotoImage } from './PhotoImage'
-import { ChoiceGroup, CheckGroup, Field, Section } from './ui'
+import type { AwakeLevel, DailyRecord, MediaRef, SlotKey } from '../types'
+import { MediaView } from './MediaView'
+import { SlotPicker } from './SlotPicker'
 
 export function RecordForm({
   initialRecord,
@@ -30,57 +22,50 @@ export function RecordForm({
 }) {
   const [record, setRecord] = useState<DailyRecord>(initialRecord)
   const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState('')
 
-  // この画面で追加した写真／外した写真をおぼえておき、
-  // 保存か取り消しのタイミングで、いらない画像データを消す。
-  const addedPhotoIds = useRef<string[]>([])
-  const removedPhotoIds = useRef<string[]>([])
+  // この画面で追加した／外したものをおぼえておき、
+  // 保存か取り消しのタイミングで、いらないデータを消す。
+  const addedMediaIds = useRef<string[]>([])
+  const removedMediaIds = useRef<string[]>([])
 
-  function update(patch: Partial<DailyRecord>) {
-    setRecord((prev) => ({ ...prev, ...patch }))
-  }
-  function updateVitals(patch: Partial<DailyRecord['vitals']>) {
-    setRecord((prev) => ({ ...prev, vitals: { ...prev.vitals, ...patch } }))
-  }
-  function updateConsciousness(patch: Partial<DailyRecord['consciousness']>) {
-    setRecord((prev) => ({ ...prev, consciousness: { ...prev.consciousness, ...patch } }))
-  }
-  function updateRehab(patch: Partial<DailyRecord['rehab']>) {
-    setRecord((prev) => ({ ...prev, rehab: { ...prev.rehab, ...patch } }))
-  }
-  function updateStaffTalk(patch: Partial<DailyRecord['staffTalk']>) {
-    setRecord((prev) => ({ ...prev, staffTalk: { ...prev.staffTalk, ...patch } }))
+  function setSlot(key: SlotKey, value: AwakeLevel | '') {
+    setRecord((prev) => ({ ...prev, slots: { ...prev.slots, [key]: value } }))
   }
 
-  async function handleAddPhotos(files: FileList | null) {
+  async function handleAddMedia(files: FileList | null, kind: MediaRef['kind']) {
     if (!files || files.length === 0) return
-    setBusy(true)
+    setBusy(kind === 'video' ? '動画を保存しています…' : '写真を保存しています…')
     setError('')
     try {
       for (const file of Array.from(files)) {
-        const blob = await shrinkImage(file)
+        // 写真は保存前に小さくする。動画はそのまま保存する
+        const blob = kind === 'photo' ? await shrinkImage(file) : file
         const id = newId()
-        await store.savePhoto(id, blob)
-        addedPhotoIds.current.push(id)
+        await store.saveMedia(id, blob)
+        addedMediaIds.current.push(id)
         setRecord((prev) => ({
           ...prev,
-          photos: [
-            ...prev.photos,
-            { id, name: file.name, type: blob.type || file.type, size: blob.size },
+          media: [
+            ...prev.media,
+            { id, kind, name: file.name, type: blob.type || file.type, size: blob.size },
           ],
         }))
       }
     } catch {
-      setError('写真を追加できませんでした。もう一度試してみてください。')
+      setError(
+        kind === 'video'
+          ? '動画を保存できませんでした。端末の空き容量を確認してみてください。'
+          : '写真を保存できませんでした。もう一度試してみてください。',
+      )
     } finally {
-      setBusy(false)
+      setBusy('')
     }
   }
 
-  function handleRemovePhoto(photoId: string) {
-    removedPhotoIds.current.push(photoId)
-    setRecord((prev) => ({ ...prev, photos: prev.photos.filter((p) => p.id !== photoId) }))
+  function handleRemoveMedia(mediaId: string) {
+    removedMediaIds.current.push(mediaId)
+    setRecord((prev) => ({ ...prev, media: prev.media.filter((m) => m.id !== mediaId) }))
   }
 
   async function handleSave() {
@@ -93,308 +78,120 @@ export function RecordForm({
       return
     }
 
-    setBusy(true)
+    setBusy('保存しています…')
     setError('')
     try {
       const saved: DailyRecord = { ...record, updatedAt: new Date().toISOString() }
       await store.saveRecord(saved)
-      // 外した写真の画像データを消す
-      for (const id of removedPhotoIds.current) {
-        if (!saved.photos.some((p) => p.id === id)) await store.deletePhoto(id)
+      // 外した写真・動画のデータを消す
+      for (const id of removedMediaIds.current) {
+        if (!saved.media.some((m) => m.id === id)) await store.deleteMedia(id)
       }
-      removedPhotoIds.current = []
-      addedPhotoIds.current = []
+      removedMediaIds.current = []
+      addedMediaIds.current = []
       onSaved(saved)
     } catch {
       setError('保存できませんでした。端末の空き容量を確認してみてください。')
-      setBusy(false)
+      setBusy('')
     }
   }
 
   async function handleCancel() {
-    // 追加したけれど保存しなかった写真を片づける
-    const keep = new Set(initialRecord.photos.map((p) => p.id))
-    for (const id of addedPhotoIds.current) {
-      if (!keep.has(id)) await store.deletePhoto(id)
+    // 追加したけれど保存しなかったものを片づける
+    const keep = new Set(initialRecord.media.map((m) => m.id))
+    for (const id of addedMediaIds.current) {
+      if (!keep.has(id)) await store.deleteMedia(id)
     }
     onCancel()
   }
 
   return (
     <div className="form">
-      <Section title="いつの記録か">
-        <Field label="日付">
+      <section className="section">
+        <label className="field">
+          <span className="field-label">日付</span>
           <input
             type="date"
             value={record.date}
-            onChange={(e) => update({ date: e.target.value })}
-          />
-        </Field>
-        <div className="row">
-          <Field label="面会 開始">
-            <input
-              type="time"
-              value={record.visitFrom}
-              onChange={(e) => update({ visitFrom: e.target.value })}
-            />
-          </Field>
-          <Field label="面会 終了">
-            <input
-              type="time"
-              value={record.visitTo}
-              onChange={(e) => update({ visitTo: e.target.value })}
-            />
-          </Field>
-        </div>
-        <ChoiceGroup
-          label="全体の調子"
-          options={OVERALL_OPTIONS}
-          value={record.overall}
-          onChange={(value) => update({ overall: value })}
-        />
-      </Section>
-
-      <Section title="体調・バイタル" description="わかるものだけでだいじょうぶです。">
-        <div className="row">
-          <Field label="体温（℃）">
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              placeholder="36.8"
-              value={record.vitals.temperature}
-              onChange={(e) => updateVitals({ temperature: e.target.value })}
-            />
-          </Field>
-          <Field label="脈拍（回/分）">
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="72"
-              value={record.vitals.pulse}
-              onChange={(e) => updateVitals({ pulse: e.target.value })}
-            />
-          </Field>
-        </div>
-        <div className="row">
-          <Field label="血圧（上）">
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="120"
-              value={record.vitals.bpSystolic}
-              onChange={(e) => updateVitals({ bpSystolic: e.target.value })}
-            />
-          </Field>
-          <Field label="血圧（下）">
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="80"
-              value={record.vitals.bpDiastolic}
-              onChange={(e) => updateVitals({ bpDiastolic: e.target.value })}
-            />
-          </Field>
-        </div>
-        <div className="row">
-          <Field label="SpO2（%）">
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="98"
-              value={record.vitals.spo2}
-              onChange={(e) => updateVitals({ spo2: e.target.value })}
-            />
-          </Field>
-          <Field label="水分（ml）">
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder="500"
-              value={record.vitals.hydration}
-              onChange={(e) => updateVitals({ hydration: e.target.value })}
-            />
-          </Field>
-        </div>
-        <ChoiceGroup
-          label="食事（主食）"
-          options={MEAL_OPTIONS}
-          value={record.vitals.mealMain}
-          onChange={(value) => updateVitals({ mealMain: value ?? '' })}
-        />
-        <ChoiceGroup
-          label="食事（副食）"
-          options={MEAL_OPTIONS}
-          value={record.vitals.mealSide}
-          onChange={(value) => updateVitals({ mealSide: value ?? '' })}
-        />
-        <ChoiceGroup
-          label="睡眠"
-          options={SLEEP_OPTIONS}
-          value={record.vitals.sleep}
-          onChange={(value) => updateVitals({ sleep: value ?? '' })}
-        />
-        <Field label="排泄">
-          <input
-            type="text"
-            placeholder="例）おむつ交換3回"
-            value={record.vitals.excretion}
-            onChange={(e) => updateVitals({ excretion: e.target.value })}
-          />
-        </Field>
-        <Field label="体調のメモ">
-          <textarea
-            rows={3}
-            placeholder="熱が下がった、咳が出ていた など"
-            value={record.vitals.note}
-            onChange={(e) => updateVitals({ note: e.target.value })}
-          />
-        </Field>
-      </Section>
-
-      <Section title="意識・会話の様子" description="日によっての変化がいちばん見えるところです。">
-        <ChoiceGroup
-          label="受け答え"
-          options={RESPONSE_OPTIONS}
-          value={record.consciousness.response}
-          onChange={(value) => updateConsciousness({ response: value ?? '' })}
-        />
-        <ChoiceGroup
-          label="こちらを認識できたか"
-          options={TRISTATE_OPTIONS}
-          value={record.consciousness.recognizedMe}
-          onChange={(value) => updateConsciousness({ recognizedMe: value ?? '' })}
-        />
-        <ChoiceGroup
-          label="表情"
-          options={EXPRESSION_OPTIONS}
-          value={record.consciousness.expression}
-          onChange={(value) => updateConsciousness({ expression: value ?? '' })}
-        />
-        <Field label="話した言葉" hint="ひと言でも、そのまま書き残しておくとあとで比べられます。">
-          <textarea
-            rows={3}
-            placeholder="「ありがとう」と言えた など"
-            value={record.consciousness.words}
-            onChange={(e) => updateConsciousness({ words: e.target.value })}
-          />
-        </Field>
-        <Field label="意識・会話のメモ">
-          <textarea
-            rows={3}
-            value={record.consciousness.note}
-            onChange={(e) => updateConsciousness({ note: e.target.value })}
-          />
-        </Field>
-      </Section>
-
-      <Section title="リハビリ・できたこと">
-        <CheckGroup
-          label="受けたリハビリ"
-          options={REHAB_OPTIONS}
-          values={record.rehab.types}
-          onChange={(types) => updateRehab({ types })}
-        />
-        <Field label="リハビリの内容">
-          <textarea
-            rows={3}
-            placeholder="ベッドのそばで立つ練習を10分 など"
-            value={record.rehab.content}
-            onChange={(e) => updateRehab({ content: e.target.value })}
-          />
-        </Field>
-        <Field label="できたこと" hint="小さなことでも書いておくと、あとで振り返るときの支えになります。">
-          <textarea
-            rows={3}
-            placeholder="右手でスプーンを持てた など"
-            value={record.rehab.achievements}
-            onChange={(e) => updateRehab({ achievements: e.target.value })}
-          />
-        </Field>
-        <Field label="リハビリのメモ">
-          <textarea
-            rows={2}
-            value={record.rehab.note}
-            onChange={(e) => updateRehab({ note: e.target.value })}
-          />
-        </Field>
-      </Section>
-
-      <Section title="医師・看護師から聞いた話">
-        <Field label="話した人">
-          <input
-            type="text"
-            placeholder="〇〇先生 / 担当看護師さん"
-            value={record.staffTalk.speaker}
-            onChange={(e) => updateStaffTalk({ speaker: e.target.value })}
-          />
-        </Field>
-        <Field label="聞いた内容">
-          <textarea
-            rows={4}
-            placeholder="検査の結果、今後の方針など"
-            value={record.staffTalk.content}
-            onChange={(e) => updateStaffTalk({ content: e.target.value })}
-          />
-        </Field>
-        <Field label="薬の変更">
-          <textarea
-            rows={2}
-            value={record.staffTalk.medicationChange}
-            onChange={(e) => updateStaffTalk({ medicationChange: e.target.value })}
-          />
-        </Field>
-        <Field label="次回の予定・面談">
-          <input
-            type="text"
-            placeholder="来週の水曜にカンファレンス など"
-            value={record.staffTalk.nextMeeting}
-            onChange={(e) => updateStaffTalk({ nextMeeting: e.target.value })}
-          />
-        </Field>
-      </Section>
-
-      <Section title="写真" description="端末の中だけに保存されます。">
-        <div className="photo-grid">
-          {record.photos.map((photo) => (
-            <div className="photo-item" key={photo.id}>
-              <PhotoImage photoId={photo.id} alt={photo.name} />
-              <button
-                type="button"
-                className="photo-remove"
-                onClick={() => handleRemovePhoto(photo.id)}
-                aria-label="この写真を外す"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-        <label className="file-button">
-          写真を追加
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => {
-              void handleAddPhotos(e.target.files)
-              e.target.value = ''
-            }}
+            onChange={(e) => setRecord((prev) => ({ ...prev, date: e.target.value }))}
           />
         </label>
-      </Section>
+      </section>
 
-      <Section title="そのほか">
-        <Field label="自由メモ">
-          <textarea
-            rows={4}
-            placeholder="気づいたこと、次に持っていくもの、自分の気持ちなど"
-            value={record.freeNote}
-            onChange={(e) => update({ freeNote: e.target.value })}
-          />
-        </Field>
-      </Section>
+      <section className="section">
+        <h2 className="section-title">起きていたか</h2>
+        <div className="slot-list">
+          {SLOTS.map((slot) => (
+            <SlotPicker
+              key={slot.key}
+              slot={slot}
+              value={record.slots[slot.key]}
+              onChange={(value) => setSlot(slot.key, value)}
+            />
+          ))}
+        </div>
+      </section>
 
+      <section className="section">
+        <h2 className="section-title">メモ</h2>
+        <textarea
+          className="note-input"
+          rows={10}
+          placeholder="様子、話したこと、先生から聞いたこと、気づいたことなど"
+          value={record.note}
+          onChange={(e) => setRecord((prev) => ({ ...prev, note: e.target.value }))}
+        />
+      </section>
+
+      <section className="section">
+        <h2 className="section-title">写真・動画</h2>
+        {record.media.length > 0 && (
+          <div className="media-grid">
+            {record.media.map((item) => (
+              <div className="media-item" key={item.id}>
+                <MediaView item={item} />
+                {item.kind === 'video' && <span className="media-badge">動画</span>}
+                <button
+                  type="button"
+                  className="media-remove"
+                  onClick={() => handleRemoveMedia(item.id)}
+                  aria-label="これを外す"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="capture-buttons">
+          <label className="capture">
+            <span aria-hidden="true">📷</span> 写真を撮る
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                void handleAddMedia(e.target.files, 'photo')
+                e.target.value = ''
+              }}
+            />
+          </label>
+          <label className="capture">
+            <span aria-hidden="true">🎥</span> 動画を撮る
+            <input
+              type="file"
+              accept="video/*"
+              capture="environment"
+              onChange={(e) => {
+                void handleAddMedia(e.target.files, 'video')
+                e.target.value = ''
+              }}
+            />
+          </label>
+        </div>
+      </section>
+
+      {busy && <p className="notice">{busy}</p>}
       {error && <p className="error">{error}</p>}
 
       <div className="form-actions">
@@ -404,10 +201,10 @@ export function RecordForm({
         <button
           type="button"
           className="btn btn-primary"
-          disabled={busy}
+          disabled={busy !== ''}
           onClick={() => void handleSave()}
         >
-          {busy ? '保存中…' : isNew ? 'この内容で保存' : '変更を保存'}
+          {isNew ? 'この内容で保存' : '変更を保存'}
         </button>
       </div>
     </div>

@@ -1,95 +1,40 @@
-// 選択肢の値と、画面に表示する日本語ラベルの対応表。
-// 選択肢を増やしたいときは、この表と src/types.ts の型を一緒に直す。
+// 選択肢の値と、画面に表示する日本語ラベル・色の対応表。
 
-import type {
-  Expression,
-  MealAmount,
-  RehabType,
-  ResponseLevel,
-  SleepQuality,
-  TriState,
-} from '../types'
+import type { AwakeLevel, SlotKey } from '../types'
 
-export interface Option<T> {
-  value: T
+export interface AwakeOption {
+  value: AwakeLevel
   label: string
+  /** 一覧やボタンで使う色（CSSの変数名） */
+  colorVar: string
 }
 
-export const MEAL_OPTIONS: Option<MealAmount>[] = [
-  { value: 'all', label: '全量' },
-  { value: 'most', label: '8割くらい' },
-  { value: 'half', label: '半分くらい' },
-  { value: 'few', label: '少しだけ' },
-  { value: 'none', label: 'ほとんど食べず' },
-  { value: 'tube', label: '経管・点滴' },
+/** 起きているかどうかの3段階。上から「起きている度合いが高い順」 */
+export const AWAKE_OPTIONS: AwakeOption[] = [
+  { value: 'awake', label: '完全に起きてる', colorVar: '--awake' },
+  { value: 'drowsy', label: '少し起きてる', colorVar: '--drowsy' },
+  { value: 'asleep', label: '寝てる', colorVar: '--asleep' },
 ]
 
-export const SLEEP_OPTIONS: Option<SleepQuality>[] = [
-  { value: 'good', label: 'よく眠れた' },
-  { value: 'normal', label: 'ふつうに眠れた' },
-  { value: 'light', label: '浅い・途中で起きた' },
-  { value: 'bad', label: 'ほとんど眠れず' },
-]
-
-export const RESPONSE_OPTIONS: Option<ResponseLevel>[] = [
-  { value: 'talked', label: 'はっきり会話できた' },
-  { value: 'short', label: '短い返事ができた' },
-  { value: 'gesture', label: 'うなずき・視線で反応' },
-  { value: 'weak', label: '反応が少ない' },
-  { value: 'none', label: '反応なし' },
-]
-
-export const TRISTATE_OPTIONS: Option<TriState>[] = [
-  { value: 'yes', label: 'できた' },
-  { value: 'sometimes', label: 'ときどき' },
-  { value: 'no', label: 'できなかった' },
-  { value: 'unknown', label: 'わからない' },
-]
-
-export const EXPRESSION_OPTIONS: Option<Expression>[] = [
-  { value: 'calm', label: '穏やか' },
-  { value: 'smile', label: '笑顔があった' },
-  { value: 'flat', label: '無表情' },
-  { value: 'painful', label: 'つらそう' },
-  { value: 'anxious', label: '不安そう' },
-  { value: 'irritated', label: 'いらいらしていた' },
-]
-
-export const REHAB_OPTIONS: Option<RehabType>[] = [
-  { value: 'pt', label: '理学療法（PT）' },
-  { value: 'ot', label: '作業療法（OT）' },
-  { value: 'st', label: '言語療法（ST）' },
-  { value: 'nurse', label: '看護・その他' },
-]
-
-export const OVERALL_OPTIONS: Option<number>[] = [
-  { value: 5, label: 'とても良い' },
-  { value: 4, label: '良い' },
-  { value: 3, label: 'ふつう' },
-  { value: 2, label: '良くない' },
-  { value: 1, label: 'とても悪い' },
-]
-
-function toLabelMap<T extends string | number>(options: Option<T>[]): Map<T, string> {
-  return new Map(options.map((o) => [o.value, o.label]))
+export interface SlotDef {
+  key: SlotKey
+  /** 入力画面などで使う名前 */
+  label: string
+  /** 一覧の色ブロックに出す短い名前 */
+  shortLabel: string
 }
 
-const LABEL_MAPS = {
-  meal: toLabelMap(MEAL_OPTIONS),
-  sleep: toLabelMap(SLEEP_OPTIONS),
-  response: toLabelMap(RESPONSE_OPTIONS),
-  tristate: toLabelMap(TRISTATE_OPTIONS),
-  expression: toLabelMap(EXPRESSION_OPTIONS),
-  rehab: toLabelMap(REHAB_OPTIONS),
-  overall: toLabelMap(OVERALL_OPTIONS),
-}
+/** 記録する3つの時間帯 */
+export const SLOTS: SlotDef[] = [
+  { key: 'lastNight', label: '昨日の夜', shortLabel: '夜' },
+  { key: 'daytime', label: '昼間', shortLabel: '昼' },
+  { key: 'visit', label: '面会時間', shortLabel: '面会' },
+]
 
-/** 値からラベルを引く。未入力（空文字・null）のときは空文字を返す */
-export function labelOf(
-  kind: keyof typeof LABEL_MAPS,
-  value: string | number | null | undefined,
-): string {
-  if (value === '' || value === null || value === undefined) return ''
-  const map = LABEL_MAPS[kind] as Map<string | number, string>
-  return map.get(value) ?? String(value)
+const AWAKE_LABELS = new Map(AWAKE_OPTIONS.map((o) => [o.value, o.label]))
+
+/** 値からラベルを引く。未記録のときは空文字を返す */
+export function awakeLabel(value: AwakeLevel | '' | undefined): string {
+  if (!value) return ''
+  return AWAKE_LABELS.get(value) ?? value
 }

@@ -95,6 +95,104 @@
   opacity: 0.6;
 }
 
+/* --- 3段階の色。ボタンと、一覧の色ブロックの両方で使う --- */
+
+.level-asleep {
+  --level: var(--asleep);
+  --level-bg: var(--asleep-bg);
+  --level-fg: var(--asleep-fg);
+}
+
+.level-drowsy {
+  --level: var(--drowsy);
+  --level-bg: var(--drowsy-bg);
+  --level-fg: var(--drowsy-fg);
+}
+
+.level-awake {
+  --level: var(--awake);
+  --level-bg: var(--awake-bg);
+  --level-fg: var(--awake-fg);
+}
+
+.level-none {
+  --level: var(--border);
+  --level-bg: var(--none-bg);
+  --level-fg: var(--none-fg);
+}
+
+/* --- 時間帯の選択ボタン --- */
+
+.slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slot-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.slot-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.level {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: var(--level-bg);
+  color: var(--level-fg);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* 選ばれていないボタンの左に、色の目印を出す */
+.level::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--level);
+}
+
+.level-on {
+  background: var(--level);
+  border-color: var(--level);
+  color: #fff;
+  font-weight: 700;
+}
+
+.level-on::before {
+  background: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .level-on {
+    color: #101613;
+  }
+  .level-on::before {
+    background: #101613;
+  }
+}
+
 /* --- 一覧 --- */
 
 .list {
@@ -131,32 +229,66 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .card-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
 }
 
 .card-date {
   font-weight: 700;
-}
-
-.card-summary {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: 1.05rem;
 }
 
 .card-meta {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.card-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.card-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px 8px 10px;
+  border-radius: 10px;
+  background: var(--level-bg);
+  color: var(--level-fg);
+  border-left: 5px solid var(--level);
+  min-width: 0;
+}
+
+.card-slot-name {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+/* 「完全に起きてる」が1行に収まるように、少し小さめの文字にする */
+.card-slot-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.card-note {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .empty {
@@ -164,121 +296,7 @@
   padding: 8px 2px;
 }
 
-/* --- 調子のバッジ --- */
-
-.badge {
-  flex: none;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.badge-5 {
-  background: #d8efe2;
-  color: #14603f;
-}
-.badge-4 {
-  background: #e6f2da;
-  color: #3a6020;
-}
-.badge-3 {
-  background: #f1f0e2;
-  color: #5f5a20;
-}
-.badge-2 {
-  background: #f8e6d5;
-  color: #7a4615;
-}
-.badge-1 {
-  background: #f7dcd9;
-  color: #8a241c;
-}
-
-@media (prefers-color-scheme: dark) {
-  .badge-5 {
-    background: #1d3a2c;
-    color: #9fe0c0;
-  }
-  .badge-4 {
-    background: #243521;
-    color: #bdd9a4;
-  }
-  .badge-3 {
-    background: #37351f;
-    color: #ded9a6;
-  }
-  .badge-2 {
-    background: #3b2a1b;
-    color: #e8c09a;
-  }
-  .badge-1 {
-    background: #3b201d;
-    color: #edaaa3;
-  }
-}
-
-/* --- グラフ --- */
-
-.chart {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-  box-shadow: var(--shadow);
-}
-
-.chart-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.chart-empty {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
-}
-
-.chart-caption {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.grid-line {
-  stroke: var(--border);
-  stroke-width: 1;
-}
-
-.grid-line-mid {
-  stroke-dasharray: 3 3;
-}
-
-.chart-line {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.chart-dot {
-  fill: var(--accent);
-}
-
-.chart-axis-label {
-  font-size: 10px;
-  fill: var(--text-muted);
-}
-
-/* --- セクションと入力欄 --- */
+/* --- セクション --- */
 
 .section {
   background: var(--surface);
@@ -286,6 +304,9 @@
   border-radius: var(--radius);
   padding: 14px;
   box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .section-title {
@@ -294,22 +315,24 @@
 }
 
 .section-desc {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.section-body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 12px;
+  margin-top: -6px;
 }
 
 .form {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions .btn {
+  flex: 1;
 }
 
 .field {
@@ -324,13 +347,7 @@
   color: var(--text-muted);
 }
 
-.field-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.field input,
-.field textarea {
+.field input {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid var(--border);
@@ -338,41 +355,14 @@
   background: var(--bg);
 }
 
-.field textarea {
-  resize: vertical;
-}
-
-.row {
-  display: flex;
-  gap: 12px;
-}
-
-.row > * {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
+.note-input {
+  width: 100%;
+  padding: 12px;
   border: 1px solid var(--border);
+  border-radius: 10px;
   background: var(--bg);
-  border-radius: 999px;
-  padding: 9px 14px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  min-height: 40px;
-}
-
-.chip-on {
-  background: var(--accent-weak);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 700;
+  resize: vertical;
+  line-height: 1.8;
 }
 
 .checkbox {
@@ -388,32 +378,45 @@
   margin-top: 2px;
 }
 
-/* --- 写真 --- */
+/* --- 写真・動画 --- */
 
-.photo-grid {
+.media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 8px;
 }
 
-.photo-item {
+.media-item {
   position: relative;
 }
 
-.photo {
+.media {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 10px;
   border: 1px solid var(--border);
   display: block;
-}
-
-.photo-empty {
   background: var(--surface-2);
 }
 
-.photo-remove {
+.media-loading {
+  background: var(--surface-2);
+}
+
+.media-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  background: rgba(8, 12, 10, 0.72);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.media-remove {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -428,20 +431,28 @@
   cursor: pointer;
 }
 
-.file-button {
+.capture-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.capture {
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   border: 1px dashed var(--border);
-  border-radius: 999px;
-  padding: 12px 18px;
+  border-radius: 12px;
+  padding: 14px 12px;
   cursor: pointer;
   font-weight: 600;
   color: var(--text-muted);
-  min-height: 44px;
+  min-height: 52px;
+  text-align: center;
 }
 
-.file-button input {
+.capture input {
   display: none;
 }
 
@@ -449,7 +460,7 @@
   position: fixed;
   inset: 0;
   z-index: 20;
-  background: rgba(8, 12, 10, 0.92);
+  background: rgba(8, 12, 10, 0.94);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -458,12 +469,14 @@
   padding: 16px;
 }
 
-.lightbox .photo {
+.media-full {
   aspect-ratio: auto;
   max-height: 80dvh;
+  max-width: 100%;
   width: auto;
   object-fit: contain;
   border: none;
+  background: transparent;
 }
 
 .lightbox-hint {
@@ -492,23 +505,38 @@
   font-weight: 700;
 }
 
-.detail-row {
+.detail-slots {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  align-items: baseline;
 }
 
-.detail-label {
+.detail-slot-label {
+  font-weight: 600;
+}
+
+.level-tag {
   flex: none;
-  width: 7.5em;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  background: var(--level-bg);
+  color: var(--level-fg);
+  border-left: 5px solid var(--level);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
 }
 
-.detail-value {
-  flex: 1;
+.detail-note {
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.9;
 }
 
 .detail-actions {
@@ -546,10 +574,3 @@
   padding: 10px 12px;
   font-size: 0.875rem;
 }
-
-/* グラフの点を調子の色に合わせる */
-.chart-dot-5 { fill: #2f9c6e; }
-.chart-dot-4 { fill: #5ca33f; }
-.chart-dot-3 { fill: #b5a33a; }
-.chart-dot-2 { fill: #cc7a33; }
-.chart-dot-1 { fill: #c2453a; }
