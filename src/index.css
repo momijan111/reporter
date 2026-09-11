@@ -1,0 +1,81 @@
+/* 色や文字の基本設定。ここを変えるとアプリ全体の見た目が変わる。 */
+
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --surface-2: #eef1ee;
+  --text: #1f2a24;
+  --text-muted: #5d6b63;
+  --border: #d9e0db;
+  --accent: #2f7d62;
+  --accent-weak: #e3f0ea;
+  --danger: #b3261e;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(31, 42, 36, 0.06), 0 4px 14px rgba(31, 42, 36, 0.05);
+
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN',
+    'Noto Sans JP', 'Yu Gothic UI', Meiryo, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141816;
+    --surface: #1d2321;
+    --surface-2: #262d2a;
+    --text: #e9efeb;
+    --text-muted: #a3b1aa;
+    --border: #333d39;
+    --accent: #6cc3a1;
+    --accent-weak: #22332c;
+    --danger: #ef9a93;
+    --shadow: none;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  -webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.4;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* スマホで入力欄をタップしたときに画面が勝手に拡大しないよう16px以上にする */
+input,
+textarea {
+  font-size: 16px;
+}
+
+img {
+  max-width: 100%;
+}
