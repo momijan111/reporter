@@ -11,7 +11,7 @@ export interface AwakeOption {
 
 /** 起きているかどうかの3段階。上から「起きている度合いが高い順」 */
 export const AWAKE_OPTIONS: AwakeOption[] = [
-  { value: 'awake', label: '完全に起きてる', colorVar: '--awake' },
+  { value: 'awake', label: 'よく起きている', colorVar: '--awake' },
   { value: 'drowsy', label: '少し起きてる', colorVar: '--drowsy' },
   { value: 'asleep', label: '寝てる', colorVar: '--asleep' },
 ]

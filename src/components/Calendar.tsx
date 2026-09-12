@@ -154,7 +154,7 @@ export function Calendar({
         <ul className="legend-items">
           <li>
             <span className="legend-swatch level-awake" />
-            完全に起きてる
+            よく起きている
           </li>
           <li>
             <span className="legend-swatch level-drowsy" />
