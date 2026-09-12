@@ -146,6 +146,7 @@ export function migrateRecord(input: unknown): DailyRecord | null {
     slots: { lastNight: '', daytime: '', visit: '' },
     note: lines.join('\n'),
     media,
+    deleted: false,
     createdAt: str(old.createdAt) || now,
     updatedAt: str(old.updatedAt) || now,
   }

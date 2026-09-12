@@ -2,13 +2,24 @@
 
 import { useState } from 'react'
 import { downloadBackup, importBackup } from '../lib/backup'
+import { CloudPanel } from './CloudPanel'
 
 export function SettingsView({
   recordCount,
+  cloudEmail,
+  syncing,
+  lastSyncedAt,
+  onCloudChanged,
+  onSyncNow,
   onImported,
   onBack,
 }: {
   recordCount: number
+  cloudEmail: string | null
+  syncing: boolean
+  lastSyncedAt: string
+  onCloudChanged: () => void
+  onSyncNow: () => void
   onImported: () => void
   onBack: () => void
 }) {
@@ -58,6 +69,14 @@ export function SettingsView({
         <h1 className="detail-date">設定・バックアップ</h1>
       </div>
 
+      <CloudPanel
+        email={cloudEmail}
+        syncing={syncing}
+        lastSyncedAt={lastSyncedAt}
+        onChanged={onCloudChanged}
+        onSyncNow={onSyncNow}
+      />
+
       <section className="section">
         <h2 className="section-title">バックアップを書き出す</h2>
         <p className="section-desc">
@@ -106,10 +125,10 @@ export function SettingsView({
       <section className="section">
         <h2 className="section-title">このアプリについて</h2>
         <p className="note-text">
-          記録はこのスマホの中だけに保存されます。インターネットには送られません。
+          家族と共有していないときは、記録はこのスマホの中だけに保存され、インターネットには送られません。
         </p>
         <p className="note-text">
-          そのため、ブラウザのデータを消したり端末を変えたりすると記録も消えます。ときどきバックアップを書き出しておくと安心です。
+          ブラウザのデータを消したり端末を変えたりすると、この端末の記録は消えます。ときどきバックアップを書き出しておくと安心です。
         </p>
         <p className="note-text">
           動画は容量が大きいので、長く撮りすぎると端末の空き容量が足りなくなることがあります。

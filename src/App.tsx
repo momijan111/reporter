@@ -7,8 +7,11 @@ import { RecordDetail } from './components/RecordDetail'
 import { RecordForm } from './components/RecordForm'
 import { RecordList } from './components/RecordList'
 import { SettingsView } from './components/SettingsView'
+import { currentEmail } from './lib/cloud'
+import { isCloudConfigured } from './lib/cloudConfig'
 import { createEmptyRecord, toPlainText, todayString } from './lib/record'
 import { store } from './lib/storage'
+import { removeCloudPhotos, syncNow } from './lib/sync'
 import type { DailyRecord } from './types'
 
 type View =
@@ -32,6 +35,12 @@ export default function App() {
   const [keyword, setKeyword] = useState('')
   const [notice, setNotice] = useState('')
 
+  // 家族と共有（クラウド）まわり
+  const [cloudEmail, setCloudEmail] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSyncedAt, setLastSyncedAt] = useState('')
+  const [syncError, setSyncError] = useState('')
+
   async function reload() {
     try {
       setRecords(await store.listRecords())
@@ -43,10 +52,48 @@ export default function App() {
     }
   }
 
+  /** 家族と記録を合わせる。ログインしていないときは何もしない */
+  async function runSync(showResult = false) {
+    if (!isCloudConfigured()) return
+    if (!(await currentEmail())) return
+
+    setSyncing(true)
+    try {
+      await syncNow()
+      setRecords(await store.listRecords())
+      setLastSyncedAt(new Date().toLocaleString('ja-JP'))
+      setSyncError('')
+      if (showResult) showNotice('家族と同じ内容になりました。')
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '家族と合わせられませんでした。'
+      setSyncError(message)
+      if (showResult) showNotice(message)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function refreshCloudEmail() {
+    setCloudEmail(await currentEmail())
+  }
+
   useEffect(() => {
-    // アプリを開いたときに、保存済みの記録をデータベースから読み込む
+    // アプリを開いたときに、保存済みの記録を読み込み、家族とも合わせる
     // oxlint-disable-next-line react/set-state-in-effect
-    void reload()
+    void (async () => {
+      await reload()
+      await refreshCloudEmail()
+      await runSync()
+    })()
+  }, [])
+
+  useEffect(() => {
+    // 電波が戻ったときにも合わせ直す
+    function handleOnline() {
+      void runSync()
+    }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   function showNotice(text: string) {
@@ -86,6 +133,7 @@ export default function App() {
     await reload()
     showNotice('保存しました。')
     setView({ name: 'detail', id: saved.id })
+    void runSync()
   }
 
   async function handleDelete(record: DailyRecord) {
@@ -93,13 +141,21 @@ export default function App() {
       `${record.date} の記録を削除します。元に戻せません。よろしいですか？`,
     )
     if (!ok) return
+    // クラウドに置いた写真も片づける（つながらないときは残るが、記録は消える）
+    try {
+      await removeCloudPhotos(record.media)
+    } catch {
+      // 消せなくても記録の削除は続ける
+    }
     for (const item of record.media) {
       await store.deleteMedia(item.id)
     }
-    await store.deleteRecord(record.id)
+    // 家族にも「消した」と伝えるため、行は残して印だけつける
+    await store.markDeleted(record.id)
     await reload()
     showNotice('削除しました。')
     setView({ name: 'home' })
+    void runSync()
   }
 
   const selected =
@@ -137,6 +193,16 @@ export default function App() {
 
         {!loading && !loadError && showHome && (
           <>
+            {cloudEmail && (
+              <p className={syncError ? 'sync-line sync-line-error' : 'sync-line'}>
+                {syncing
+                  ? '家族と合わせています…'
+                  : syncError
+                    ? `家族と合わせられません（${syncError}）`
+                    : `家族と共有中${lastSyncedAt ? `（最終同期 ${lastSyncedAt}）` : ''}`}
+              </p>
+            )}
+
             <Calendar
               year={shown.year}
               month={shown.month}
@@ -192,6 +258,16 @@ export default function App() {
         {view.name === 'settings' && (
           <SettingsView
             recordCount={records.length}
+            cloudEmail={cloudEmail}
+            syncing={syncing}
+            lastSyncedAt={lastSyncedAt}
+            onCloudChanged={() => {
+              void (async () => {
+                await refreshCloudEmail()
+                await runSync()
+              })()
+            }}
+            onSyncNow={() => void runSync(true)}
             onImported={() => void reload()}
             onBack={() => setView({ name: 'home' })}
           />

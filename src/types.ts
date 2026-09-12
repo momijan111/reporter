@@ -27,6 +27,12 @@ export interface DailyRecord {
   slots: Slots
   note: string
   media: MediaRef[]
+  /**
+   * 消した記録かどうか。
+   * 家族と同期するときに「消したこと」も伝える必要があるので、
+   * すぐ消さずに、この印をつけて残しておく。
+   */
+  deleted?: boolean
   /** ISO文字列 */
   createdAt: string
   updatedAt: string

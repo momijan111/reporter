@@ -35,15 +35,20 @@ export function formatDateLong(date: string): string {
   return `${y}年${formatDate(date)}`
 }
 
-/** 空っぽの記録を作る */
+/**
+ * 空っぽの記録を作る。
+ * 1日1件にするため、記録の名前（id）には日付をそのまま使う。
+ * こうしておくと、家族が別々の端末で同じ日を書いても1つにまとまる。
+ */
 export function createEmptyRecord(date: string = todayString()): DailyRecord {
   const now = new Date().toISOString()
   return {
-    id: newId(),
+    id: date || newId(),
     date,
     slots: { lastNight: '', daytime: '', visit: '' },
     note: '',
     media: [],
+    deleted: false,
     createdAt: now,
     updatedAt: now,
   }

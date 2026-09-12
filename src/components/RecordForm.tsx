@@ -81,7 +81,23 @@ export function RecordForm({
     setBusy('保存しています…')
     setError('')
     try {
-      const saved: DailyRecord = { ...record, updatedAt: new Date().toISOString() }
+      // 1日1件にするため、新しい記録の名前（id）には日付をそのまま使う。
+      // すでにその日の記録があるときは、上書きしないで知らせる。
+      if (isNew) {
+        const existing = await store.getRecord(record.date)
+        if (existing && !existing.deleted) {
+          setError('この日の記録はすでにあります。カレンダーからその日をタップして開いてください。')
+          setBusy('')
+          return
+        }
+      }
+
+      const saved: DailyRecord = {
+        ...record,
+        id: isNew ? record.date : record.id,
+        deleted: false,
+        updatedAt: new Date().toISOString(),
+      }
       await store.saveRecord(saved)
       // 外した写真・動画のデータを消す
       for (const id of removedMediaIds.current) {
