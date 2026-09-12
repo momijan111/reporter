@@ -9,8 +9,8 @@
 // GitHub Actions のシークレット（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）を
 // 使う場合は、そちらが優先されます。
 
-const FALLBACK_URL = ''
-const FALLBACK_ANON_KEY = ''
+const FALLBACK_URL = 'https://gcetgcbbsvistfworndj.supabase.co'
+const FALLBACK_ANON_KEY = 'sb_publishable_wdB2OmUfIiL0YgP84kJHmg_nk3T-dPG'
 
 export const CLOUD_URL: string = import.meta.env.VITE_SUPABASE_URL || FALLBACK_URL
 export const CLOUD_ANON_KEY: string =

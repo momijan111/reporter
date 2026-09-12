@@ -67,7 +67,13 @@ export async function syncNow(): Promise<SyncResult> {
   if (!session) throw new Error('ログインしていません。')
 
   const { data, error } = await supabase.from('records').select('*')
-  if (error) throw new Error(`記録を受け取れませんでした（${error.message}）`)
+  if (error) {
+    // クラウド側の表がまだ作られていないときは、分かりやすく伝える
+    if (error.code === 'PGRST205' || error.message.includes('Could not find the table')) {
+      throw new Error('クラウド側の準備（SQLの実行）がまだのようです。')
+    }
+    throw new Error(`記録を受け取れませんでした（${error.message}）`)
+  }
   const remote = (data ?? []) as CloudRow[]
 
   const local = await store.listAllRecords()
