@@ -11,10 +11,10 @@
   --accent-weak: #e3f0ea;
   --danger: #b3261e;
 
-  /* 3段階の色。寝てる=青、少し起きてる=オレンジ、完全に起きてる=緑 */
-  --asleep: #3f63a8;
-  --asleep-bg: #e2eaf7;
-  --asleep-fg: #2b4577;
+  /* 3段階の色。寝てる=赤、少し起きてる=オレンジ、完全に起きてる=緑 */
+  --asleep: #cf4a3d;
+  --asleep-bg: #fae0dd;
+  --asleep-fg: #8f2c22;
   --drowsy: #c6821a;
   --drowsy-bg: #fbeed4;
   --drowsy-fg: #8a5a0d;
@@ -46,9 +46,9 @@
     --danger: #ef9a93;
     --shadow: none;
 
-    --asleep: #7aa0e0;
-    --asleep-bg: #23304a;
-    --asleep-fg: #b9cef0;
+    --asleep: #e0736a;
+    --asleep-bg: #3d2320;
+    --asleep-fg: #f0b3ad;
     --drowsy: #e0a648;
     --drowsy-bg: #3a2f1b;
     --drowsy-fg: #edc98c;

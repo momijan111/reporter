@@ -1,26 +1,34 @@
 // 画面の切り替えと、記録の読み込み・保存・削除のまとめ役。
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
+import { Calendar } from './components/Calendar'
 import { RecordDetail } from './components/RecordDetail'
 import { RecordForm } from './components/RecordForm'
 import { RecordList } from './components/RecordList'
 import { SettingsView } from './components/SettingsView'
-import { createEmptyRecord, todayString } from './lib/record'
+import { createEmptyRecord, toPlainText, todayString } from './lib/record'
 import { store } from './lib/storage'
 import type { DailyRecord } from './types'
 
 type View =
-  | { name: 'list' }
+  | { name: 'home' }
   | { name: 'detail'; id: string }
   | { name: 'form'; record: DailyRecord; isNew: boolean }
   | { name: 'settings' }
+
+/** 今日の年月（カレンダーの最初の表示） */
+function currentMonth(): { year: number; month: number } {
+  const now = new Date()
+  return { year: now.getFullYear(), month: now.getMonth() + 1 }
+}
 
 export default function App() {
   const [records, setRecords] = useState<DailyRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [view, setView] = useState<View>({ name: 'list' })
+  const [view, setView] = useState<View>({ name: 'home' })
+  const [shown, setShown] = useState(currentMonth)
   const [keyword, setKeyword] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -44,6 +52,23 @@ export default function App() {
   function showNotice(text: string) {
     setNotice(text)
     setTimeout(() => setNotice(''), 4000)
+  }
+
+  function moveMonth(step: number) {
+    setShown((prev) => {
+      const date = new Date(prev.year, prev.month - 1 + step, 1)
+      return { year: date.getFullYear(), month: date.getMonth() + 1 }
+    })
+  }
+
+  /** その日の記録を開く。なければ、その日の新しい記録を作る */
+  function openDate(date: string) {
+    const existing = records.find((r) => r.date === date)
+    if (existing) {
+      setView({ name: 'detail', id: existing.id })
+      return
+    }
+    setView({ name: 'form', record: createEmptyRecord(date), isNew: true })
   }
 
   function startToday() {
@@ -74,21 +99,26 @@ export default function App() {
     await store.deleteRecord(record.id)
     await reload()
     showNotice('削除しました。')
-    setView({ name: 'list' })
+    setView({ name: 'home' })
   }
 
   const selected =
     view.name === 'detail' ? records.find((r) => r.id === view.id) : undefined
 
-  // 記録が見つからないとき（削除された直後など）は一覧を出す
-  const showList =
-    view.name === 'list' || (view.name === 'detail' && !loading && !selected)
+  // 記録が見つからないとき（削除された直後など）はトップを出す
+  const showHome = view.name === 'home' || (view.name === 'detail' && !loading && !selected)
+
+  const searchHits = useMemo(() => {
+    const trimmed = keyword.trim()
+    if (trimmed === '') return null
+    return records.filter((r) => toPlainText(r).includes(trimmed))
+  }, [keyword, records])
 
   return (
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">母の入院記録</h1>
-        {view.name === 'list' && (
+        {showHome && (
           <button
             type="button"
             className="btn btn-ghost btn-small"
@@ -105,13 +135,35 @@ export default function App() {
         {loading && <p className="empty">読み込み中…</p>}
         {!loading && loadError && <p className="error">{loadError}</p>}
 
-        {!loading && !loadError && showList && (
-          <RecordList
-            records={records}
-            keyword={keyword}
-            onKeywordChange={setKeyword}
-            onSelect={(id) => setView({ name: 'detail', id })}
-          />
+        {!loading && !loadError && showHome && (
+          <>
+            <Calendar
+              year={shown.year}
+              month={shown.month}
+              records={records}
+              onPrevMonth={() => moveMonth(-1)}
+              onNextMonth={() => moveMonth(1)}
+              onSelectDate={openDate}
+            />
+
+            {records.length > 3 && (
+              <input
+                type="search"
+                className="search"
+                placeholder="メモの言葉でさがす"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+            )}
+
+            {searchHits !== null && (
+              <RecordList
+                records={searchHits}
+                keyword={keyword.trim()}
+                onSelect={(id) => setView({ name: 'detail', id })}
+              />
+            )}
+          </>
         )}
 
         {!loading && view.name === 'detail' && selected && (
@@ -119,7 +171,7 @@ export default function App() {
             record={selected}
             onEdit={() => setView({ name: 'form', record: selected, isNew: false })}
             onDelete={() => void handleDelete(selected)}
-            onBack={() => setView({ name: 'list' })}
+            onBack={() => setView({ name: 'home' })}
           />
         )}
 
@@ -131,7 +183,7 @@ export default function App() {
             onSaved={(saved) => void handleSaved(saved)}
             onCancel={() =>
               setView(
-                view.isNew ? { name: 'list' } : { name: 'detail', id: view.record.id },
+                view.isNew ? { name: 'home' } : { name: 'detail', id: view.record.id },
               )
             }
           />
@@ -141,12 +193,12 @@ export default function App() {
           <SettingsView
             recordCount={records.length}
             onImported={() => void reload()}
-            onBack={() => setView({ name: 'list' })}
+            onBack={() => setView({ name: 'home' })}
           />
         )}
       </main>
 
-      {showList && !loading && !loadError && (
+      {showHome && !loading && !loadError && (
         <div className="app-footer">
           <button type="button" className="btn btn-primary btn-block" onClick={startToday}>
             今日の記録をつける
