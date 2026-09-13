@@ -74,6 +74,19 @@ create policy "family can use own photos" on storage.objects
     bucket_id = 'photos'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- 家族の誰かが書いたら、すぐほかの端末に知らせる設定
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'records'
+  ) then
+    alter publication supabase_realtime add table public.records;
+  end if;
+end $$;
 ```
 
 `Success. No rows returned` と出れば成功です。
@@ -137,6 +150,8 @@ const FALLBACK_ANON_KEY = 'eyJhbGciOi...（長い文字列）'
 
 - **写真は共有されます。動画は共有されません**（容量が大きいため、撮った端末の中だけに残ります）
 - **同じ日の記録を2人が同時に直すと、あとに保存したほうが残ります**
+- 同期は**自動**です。家族の誰かが書くとすぐ届き、アプリを開き直したときや
+  電波が戻ったときにも合わせ直します。設定画面のボタンはふだん押す必要はありません
 - 電波がないところでも記録できます。つながったときに自動で家族と合わせます
 - 合い言葉を知っている人は記録をすべて見られます。家族以外に教えないでください
 - 無料枠：データベース500MB・写真の保管1GB。

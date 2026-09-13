@@ -1,13 +1,13 @@
 // 画面の切り替えと、記録の読み込み・保存・削除のまとめ役。
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { Calendar } from './components/Calendar'
 import { RecordDetail } from './components/RecordDetail'
 import { RecordForm } from './components/RecordForm'
 import { RecordList } from './components/RecordList'
 import { SettingsView } from './components/SettingsView'
-import { currentEmail } from './lib/cloud'
+import { currentEmail, subscribeToChanges } from './lib/cloud'
 import { isCloudConfigured } from './lib/cloudConfig'
 import { createEmptyRecord, toPlainText, todayString } from './lib/record'
 import { store } from './lib/storage'
@@ -52,11 +52,16 @@ export default function App() {
     }
   }
 
+  // 同時に何度も走らないようにするための目印
+  const syncingRef = useRef(false)
+
   /** 家族と記録を合わせる。ログインしていないときは何もしない */
   async function runSync(showResult = false) {
     if (!isCloudConfigured()) return
+    if (syncingRef.current) return
     if (!(await currentEmail())) return
 
+    syncingRef.current = true
     setSyncing(true)
     try {
       await syncNow()
@@ -69,6 +74,7 @@ export default function App() {
       setSyncError(message)
       if (showResult) showNotice(message)
     } finally {
+      syncingRef.current = false
       setSyncing(false)
     }
   }
@@ -88,13 +94,46 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    // 電波が戻ったときにも合わせ直す
+    // 電波が戻ったとき、アプリを開き直したときにも合わせ直す
     function handleOnline() {
       void runSync()
     }
+    function handleVisible() {
+      if (document.visibilityState === 'visible') void runSync()
+    }
     window.addEventListener('online', handleOnline)
-    return () => window.removeEventListener('online', handleOnline)
+    window.addEventListener('focus', handleVisible)
+    document.addEventListener('visibilitychange', handleVisible)
+
+    // 念のため、開いている間は数分ごとにも確かめる
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void runSync()
+    }, 5 * 60 * 1000)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('focus', handleVisible)
+      document.removeEventListener('visibilitychange', handleVisible)
+      window.clearInterval(timer)
+    }
   }, [])
+
+  useEffect(() => {
+    // 家族の誰かが書いたら、すぐ受け取って画面を更新する
+    if (!cloudEmail) return
+
+    let timer = 0
+    const stop = subscribeToChanges(() => {
+      // 短い間に何度も届くことがあるので、少し待ってからまとめて合わせる
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => void runSync(), 1500)
+    })
+
+    return () => {
+      window.clearTimeout(timer)
+      stop()
+    }
+  }, [cloudEmail])
 
   function showNotice(text: string) {
     setNotice(text)
@@ -199,7 +238,7 @@ export default function App() {
                   ? '家族と合わせています…'
                   : syncError
                     ? `家族と合わせられません（${syncError}）`
-                    : `家族と共有中${lastSyncedAt ? `（最終同期 ${lastSyncedAt}）` : ''}`}
+                    : `家族と共有中・自動で同期${lastSyncedAt ? `（最終 ${lastSyncedAt}）` : ''}`}
               </p>
             )}
 

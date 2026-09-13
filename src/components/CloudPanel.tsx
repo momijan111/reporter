@@ -67,7 +67,11 @@ export function CloudPanel({
       <section className="section">
         <h2 className="section-title">家族と共有</h2>
         <p className="section-desc">
-          {email} でログイン中です。記録は自動で家族と同じ内容になります。
+          {email} でログイン中です。
+        </p>
+        <p className="note-text">
+          記録は<strong>自動で</strong>家族と同じ内容になります。家族の誰かが書くとすぐ届き、
+          アプリを開き直したときや電波が戻ったときにも合わせ直します。
         </p>
         <p className="note-text">
           最後に合わせた時刻：{lastSyncedAt || 'まだ合わせていません'}
@@ -81,7 +85,7 @@ export function CloudPanel({
           disabled={syncing || busy}
           onClick={onSyncNow}
         >
-          {syncing ? '合わせています…' : '今すぐ家族と合わせる'}
+          {syncing ? '合わせています…' : '今すぐ合わせる（ふだんは不要）'}
         </button>
         <button
           type="button"
