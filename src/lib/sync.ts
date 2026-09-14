@@ -8,7 +8,7 @@
 // 写真は家族で共有する（Supabase の保管場所に置く）。
 // 動画は容量が大きいので共有せず、撮った端末の中にだけ残す。
 
-import type { DailyRecord, MediaRef, Slots } from '../types'
+import type { DailyRecord, MediaRef, Medicine, Slots } from '../types'
 import { getClient } from './cloud'
 import { store } from './storage'
 
@@ -19,8 +19,18 @@ interface CloudRow {
   date: string
   slots: Slots
   note: string | null
+  medicine_ids: string[] | null
   media: MediaRef[] | null
   deleted: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface MedicineRow {
+  id: string
+  name: string
+  note: string | null
+  archived: boolean
   created_at: string
   updated_at: string
 }
@@ -30,6 +40,52 @@ export interface SyncResult {
   pushed: number
   photosUp: number
   photosDown: number
+}
+
+/** 薬の一覧を家族と合わせる */
+async function syncMedicines(
+  supabase: NonNullable<ReturnType<typeof getClient>>,
+  ownerId: string,
+): Promise<void> {
+  const { data, error } = await supabase.from('medicines').select('*')
+  if (error) throw new Error(`薬の一覧を受け取れませんでした（${error.message}）`)
+  const remote = (data ?? []) as MedicineRow[]
+
+  const local = await store.listMedicines()
+  const localById = new Map(local.map((m) => [m.id, m]))
+
+  for (const row of remote) {
+    const mine = localById.get(row.id)
+    if (mine && time(mine.updatedAt) >= time(row.updated_at)) continue
+    await store.saveMedicine({
+      id: row.id,
+      name: row.name,
+      note: row.note ?? '',
+      archived: row.archived,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })
+  }
+
+  const remoteById = new Map(remote.map((r) => [r.id, r]))
+  const toPush = local.filter((m) => {
+    const row = remoteById.get(m.id)
+    return !row || time(row.updated_at) < time(m.updatedAt)
+  })
+
+  if (toPush.length > 0) {
+    const rows = toPush.map((m: Medicine) => ({
+      id: m.id,
+      owner: ownerId,
+      name: m.name,
+      note: m.note,
+      archived: m.archived ?? false,
+      created_at: m.createdAt,
+      updated_at: m.updatedAt,
+    }))
+    const { error: pushError } = await supabase.from('medicines').upsert(rows)
+    if (pushError) throw new Error(`薬の一覧を送れませんでした（${pushError.message}）`)
+  }
 }
 
 /** 日時を比べられる数値にする（クラウドとこちらで書き方が違うため） */
@@ -66,6 +122,9 @@ export async function syncNow(): Promise<SyncResult> {
   const session = sessionData.session
   if (!session) throw new Error('ログインしていません。')
 
+  // 先に薬の一覧を合わせる（記録がその名前を使うため）
+  await syncMedicines(supabase, session.user.id)
+
   const { data, error } = await supabase.from('records').select('*')
   if (error) {
     // クラウド側の表がまだ作られていないときは、分かりやすく伝える
@@ -94,6 +153,7 @@ export async function syncNow(): Promise<SyncResult> {
       date: row.date,
       slots: row.slots,
       note: row.note ?? '',
+      medicineIds: row.medicine_ids ?? [],
       media: [...remotePhotos, ...localVideos],
       deleted: row.deleted,
       createdAt: row.created_at,
@@ -116,6 +176,7 @@ export async function syncNow(): Promise<SyncResult> {
       date: r.date,
       slots: r.slots,
       note: r.note,
+      medicine_ids: r.medicineIds,
       // 共有するのは写真だけ
       media: r.media.filter((m) => m.kind === 'photo'),
       deleted: r.deleted ?? false,

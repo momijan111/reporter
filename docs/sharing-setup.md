@@ -75,16 +75,44 @@ create policy "family can use own photos" on storage.objects
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- 使っている薬の一覧（家族で共有する）
+create table if not exists public.medicines (
+  id text primary key,
+  owner uuid not null references auth.users (id) on delete cascade,
+  name text not null,
+  note text not null default '',
+  archived boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.medicines enable row level security;
+
+drop policy if exists "family can use own medicines" on public.medicines;
+create policy "family can use own medicines" on public.medicines
+  for all to authenticated
+  using (auth.uid() = owner)
+  with check (auth.uid() = owner);
+
+alter table public.records
+  add column if not exists medicine_ids jsonb not null default '[]'::jsonb;
+
 -- 家族の誰かが書いたら、すぐほかの端末に知らせる設定
 do $$
 begin
   if not exists (
     select 1 from pg_publication_tables
     where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'records'
+      and schemaname = 'public' and tablename = 'records'
   ) then
     alter publication supabase_realtime add table public.records;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public' and tablename = 'medicines'
+  ) then
+    alter publication supabase_realtime add table public.medicines;
   end if;
 end $$;
 ```

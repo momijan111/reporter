@@ -5,18 +5,24 @@ import { SLOTS } from '../data/labels'
 import { shrinkImage } from '../lib/image'
 import { isEmptyRecord, newId } from '../lib/record'
 import { store } from '../lib/storage'
-import type { AwakeLevel, DailyRecord, MediaRef, SlotKey } from '../types'
+import type { AwakeLevel, DailyRecord, MediaRef, Medicine, SlotKey } from '../types'
 import { MediaView } from './MediaView'
+import { MedicinePicker } from './MedicinePicker'
 import { SlotPicker } from './SlotPicker'
 
 export function RecordForm({
   initialRecord,
   isNew,
+  medicines,
+  onMedicineAdded,
   onSaved,
   onCancel,
 }: {
   initialRecord: DailyRecord
   isNew: boolean
+  /** 登録ずみの薬（使用中のものだけ） */
+  medicines: Medicine[]
+  onMedicineAdded: () => void
   onSaved: (record: DailyRecord) => void
   onCancel: () => void
 }) {
@@ -146,6 +152,16 @@ export function RecordForm({
             />
           ))}
         </div>
+      </section>
+
+      <section className="section">
+        <h2 className="section-title">使っている薬</h2>
+        <MedicinePicker
+          medicines={medicines}
+          selectedIds={record.medicineIds}
+          onChange={(ids) => setRecord((prev) => ({ ...prev, medicineIds: ids }))}
+          onMedicineAdded={onMedicineAdded}
+        />
       </section>
 
       <section className="section">

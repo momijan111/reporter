@@ -56,6 +56,9 @@ export function subscribeToChanges(onChange: () => void): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => {
       onChange()
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'medicines' }, () => {
+      onChange()
+    })
     .subscribe()
 
   return () => {

@@ -12,7 +12,7 @@ import { isCloudConfigured } from './lib/cloudConfig'
 import { createEmptyRecord, toPlainText, todayString } from './lib/record'
 import { store } from './lib/storage'
 import { removeCloudPhotos, syncNow } from './lib/sync'
-import type { DailyRecord } from './types'
+import type { DailyRecord, Medicine } from './types'
 
 type View =
   | { name: 'home' }
@@ -28,6 +28,7 @@ function currentMonth(): { year: number; month: number } {
 
 export default function App() {
   const [records, setRecords] = useState<DailyRecord[]>([])
+  const [medicines, setMedicines] = useState<Medicine[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [view, setView] = useState<View>({ name: 'home' })
@@ -44,6 +45,7 @@ export default function App() {
   async function reload() {
     try {
       setRecords(await store.listRecords())
+      setMedicines(await store.listMedicines())
       setLoadError('')
     } catch {
       setLoadError('記録を読み込めませんでした。ブラウザのプライベートモードでは使えないことがあります。')
@@ -66,6 +68,7 @@ export default function App() {
     try {
       await syncNow()
       setRecords(await store.listRecords())
+      setMedicines(await store.listMedicines())
       setLastSyncedAt(new Date().toLocaleString('ja-JP'))
       setSyncError('')
       if (showResult) showNotice('家族と同じ内容になりました。')
@@ -206,8 +209,8 @@ export default function App() {
   const searchHits = useMemo(() => {
     const trimmed = keyword.trim()
     if (trimmed === '') return null
-    return records.filter((r) => toPlainText(r).includes(trimmed))
-  }, [keyword, records])
+    return records.filter((r) => toPlainText(r, medicines).includes(trimmed))
+  }, [keyword, records, medicines])
 
   return (
     <div className="app">
@@ -274,6 +277,7 @@ export default function App() {
         {!loading && view.name === 'detail' && selected && (
           <RecordDetail
             record={selected}
+            medicines={medicines}
             onEdit={() => setView({ name: 'form', record: selected, isNew: false })}
             onDelete={() => void handleDelete(selected)}
             onBack={() => setView({ name: 'home' })}
@@ -285,6 +289,13 @@ export default function App() {
             key={view.record.id}
             initialRecord={view.record}
             isNew={view.isNew}
+            medicines={medicines.filter((m) => !m.archived)}
+            onMedicineAdded={() => {
+              void (async () => {
+                setMedicines(await store.listMedicines())
+                await runSync()
+              })()
+            }}
             onSaved={(saved) => void handleSaved(saved)}
             onCancel={() =>
               setView(
@@ -297,6 +308,13 @@ export default function App() {
         {view.name === 'settings' && (
           <SettingsView
             recordCount={records.length}
+            medicines={medicines}
+            onMedicinesChanged={() => {
+              void (async () => {
+                setMedicines(await store.listMedicines())
+                await runSync()
+              })()
+            }}
             cloudEmail={cloudEmail}
             syncing={syncing}
             lastSyncedAt={lastSyncedAt}

@@ -2,17 +2,20 @@
 
 import { useState } from 'react'
 import { SLOTS, awakeLabel } from '../data/labels'
-import { formatDateLong, toPlainText } from '../lib/record'
-import type { DailyRecord, MediaRef } from '../types'
+import { formatDateLong, medicineNames, toPlainText } from '../lib/record'
+import type { DailyRecord, MediaRef, Medicine } from '../types'
 import { MediaView } from './MediaView'
 
 export function RecordDetail({
   record,
+  medicines,
   onEdit,
   onDelete,
   onBack,
 }: {
   record: DailyRecord
+  /** 登録ずみの薬すべて（名前を出すために使う） */
+  medicines: Medicine[]
   onEdit: () => void
   onDelete: () => void
   onBack: () => void
@@ -20,9 +23,11 @@ export function RecordDetail({
   const [copied, setCopied] = useState('')
   const [zoomed, setZoomed] = useState<MediaRef | null>(null)
 
+  const names = medicineNames(record, medicines)
+
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(toPlainText(record))
+      await navigator.clipboard.writeText(toPlainText(record, medicines))
       setCopied('コピーしました。LINEなどに貼りつけられます。')
     } catch {
       setCopied('コピーできませんでした。端末の設定で許可が必要な場合があります。')
@@ -55,6 +60,19 @@ export function RecordDetail({
           })}
         </div>
       </section>
+
+      {names.length > 0 && (
+        <section className="section">
+          <h2 className="section-title">使っている薬</h2>
+          <ul className="medicine-tags">
+            {names.map((name, index) => (
+              <li key={`${name}-${index}`} className="medicine-tag">
+                {name}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {record.note.trim() !== '' && (
         <section className="section">

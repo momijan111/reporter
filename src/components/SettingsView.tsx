@@ -2,10 +2,14 @@
 
 import { useState } from 'react'
 import { downloadBackup, importBackup } from '../lib/backup'
+import type { Medicine } from '../types'
 import { CloudPanel } from './CloudPanel'
+import { MedicineManager } from './MedicineManager'
 
 export function SettingsView({
   recordCount,
+  medicines,
+  onMedicinesChanged,
   cloudEmail,
   syncing,
   lastSyncedAt,
@@ -15,6 +19,8 @@ export function SettingsView({
   onBack,
 }: {
   recordCount: number
+  medicines: Medicine[]
+  onMedicinesChanged: () => void
   cloudEmail: string | null
   syncing: boolean
   lastSyncedAt: string
@@ -68,6 +74,8 @@ export function SettingsView({
         </button>
         <h1 className="detail-date">設定・バックアップ</h1>
       </div>
+
+      <MedicineManager medicines={medicines} onChanged={onMedicinesChanged} />
 
       <CloudPanel
         email={cloudEmail}

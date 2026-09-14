@@ -1,7 +1,7 @@
 // 記録そのものを扱う小さな便利関数たち。
 
 import { SLOTS, awakeLabel } from '../data/labels'
-import type { DailyRecord } from '../types'
+import type { DailyRecord, Medicine } from '../types'
 
 export function newId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -47,6 +47,7 @@ export function createEmptyRecord(date: string = todayString()): DailyRecord {
     date,
     slots: { lastNight: '', daytime: '', visit: '' },
     note: '',
+    medicineIds: [],
     media: [],
     deleted: false,
     createdAt: now,
@@ -54,14 +55,23 @@ export function createEmptyRecord(date: string = todayString()): DailyRecord {
   }
 }
 
+/** 記録に選ばれている薬の名前を並べる */
+export function medicineNames(record: DailyRecord, medicines: Medicine[]): string[] {
+  const byId = new Map(medicines.map((m) => [m.id, m]))
+  return (record.medicineIds ?? []).map((id) => byId.get(id)?.name ?? '（削除された薬）')
+}
+
 /** 記録を、そのままLINEなどに貼れる文章に変換する */
-export function toPlainText(record: DailyRecord): string {
+export function toPlainText(record: DailyRecord, medicines: Medicine[] = []): string {
   const lines: string[] = [`【${formatDateLong(record.date)}の様子】`]
 
   for (const slot of SLOTS) {
     const label = awakeLabel(record.slots[slot.key])
     if (label) lines.push(`${slot.label}: ${label}`)
   }
+
+  const names = medicineNames(record, medicines)
+  if (names.length > 0) lines.push('', `薬: ${names.join('、')}`)
 
   if (record.note.trim()) lines.push('', record.note.trim())
 
@@ -78,5 +88,10 @@ export function toPlainText(record: DailyRecord): string {
 /** 入力が1つもない記録かどうか（保存ボタンの判定に使う） */
 export function isEmptyRecord(record: DailyRecord): boolean {
   const noSlots = SLOTS.every((slot) => record.slots[slot.key] === '')
-  return noSlots && record.note.trim() === '' && record.media.length === 0
+  return (
+    noSlots &&
+    record.note.trim() === '' &&
+    record.medicineIds.length === 0 &&
+    record.media.length === 0
+  )
 }

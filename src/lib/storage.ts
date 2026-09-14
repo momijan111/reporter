@@ -3,9 +3,23 @@
 // あとでクラウド保存（Supabase など）を足すときは、
 // 同じ形の別の実装を作って store を差し替えるだけでよい。
 
-import type { DailyRecord, MediaBlob } from '../types'
-import { STORE_MEDIA, STORE_RECORDS, dbDelete, dbGet, dbGetAll, dbPut } from './db'
+import type { DailyRecord, MediaBlob, Medicine } from '../types'
+import {
+  STORE_MEDIA,
+  STORE_MEDICINES,
+  STORE_RECORDS,
+  dbDelete,
+  dbGet,
+  dbGetAll,
+  dbPut,
+} from './db'
 import { isLegacyRecord, migrateRecord } from './legacy'
+
+/** 古い形で保存された記録にも、あとから増えた項目を補う */
+function normalize(record: DailyRecord): DailyRecord {
+  if (Array.isArray(record.medicineIds)) return record
+  return { ...record, medicineIds: [] }
+}
 
 export interface RecordStore {
   /** 画面に出す記録（消したものは含まない） */
@@ -20,6 +34,10 @@ export interface RecordStore {
   getMedia(id: string): Promise<Blob | undefined>
   saveMedia(id: string, blob: Blob): Promise<void>
   deleteMedia(id: string): Promise<void>
+
+  /** 登録した薬（使わなくなったものも含む） */
+  listMedicines(): Promise<Medicine[]>
+  saveMedicine(medicine: Medicine): Promise<void>
 }
 
 /** スマホ（ブラウザ）の中だけに保存する実装 */
@@ -38,7 +56,7 @@ export const localStore: RecordStore = {
         }
         continue
       }
-      records.push(row as DailyRecord)
+      records.push(normalize(row as DailyRecord))
     }
 
     // 新しい日付が先に来るように並べる。同じ日なら、あとで直したほうを先にする
@@ -56,7 +74,8 @@ export const localStore: RecordStore = {
   async getRecord(id) {
     const row = await dbGet<unknown>(STORE_RECORDS, id)
     if (row === undefined) return undefined
-    return isLegacyRecord(row) ? (migrateRecord(row) ?? undefined) : (row as DailyRecord)
+    if (isLegacyRecord(row)) return migrateRecord(row) ?? undefined
+    return normalize(row as DailyRecord)
   },
 
   /** 消した印をつける（家族と同期するときに「消したこと」を伝えるため） */
@@ -92,6 +111,16 @@ export const localStore: RecordStore = {
 
   deleteMedia(id) {
     return dbDelete(STORE_MEDIA, id)
+  },
+
+  async listMedicines() {
+    const rows = await dbGetAll<Medicine>(STORE_MEDICINES)
+    // 名前の五十音順にそろえる
+    return rows.sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+  },
+
+  saveMedicine(medicine) {
+    return dbPut(STORE_MEDICINES, medicine)
   },
 }
 

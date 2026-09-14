@@ -19,6 +19,21 @@ export interface MediaRef {
   size: number
 }
 
+/**
+ * 使っている薬。一度登録すると、以降は選ぶだけで記録できる。
+ * 家族全員で同じ一覧を使う。
+ */
+export interface Medicine {
+  id: string
+  name: string
+  /** 用量や飲むタイミングなどのメモ */
+  note: string
+  /** 使わなくなった薬。一覧には出さないが、過去の記録では名前が出せるよう残す */
+  archived?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 /** 1日ぶんの記録 */
 export interface DailyRecord {
   id: string
@@ -26,6 +41,8 @@ export interface DailyRecord {
   date: string
   slots: Slots
   note: string
+  /** その日に使った薬（Medicine の id） */
+  medicineIds: string[]
   media: MediaRef[]
   /**
    * 消した記録かどうか。

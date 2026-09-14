@@ -2,11 +2,12 @@
 // ここでは「箱を開ける／出す／入れる／消す」だけを用意している。
 
 const DB_NAME = 'hospital-log'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 export const STORE_RECORDS = 'records'
 // 写真と動画の両方をここに入れる（名前は最初に作ったときのまま）
 export const STORE_MEDIA = 'photos'
+export const STORE_MEDICINES = 'medicines'
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -20,6 +21,9 @@ function openDatabase(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_MEDIA)) {
         db.createObjectStore(STORE_MEDIA, { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains(STORE_MEDICINES)) {
+        db.createObjectStore(STORE_MEDICINES, { keyPath: 'id' })
       }
     }
     request.onsuccess = () => resolve(request.result)
