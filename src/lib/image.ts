@@ -1,7 +1,11 @@
 // 写真はそのままだと1枚数MBになるので、保存する前に小さくする。
+// カメラで撮った写真も、アルバムから選んだ写真も、同じこの処理を通す。
 
 const MAX_EDGE = 1280
 const QUALITY = 0.8
+
+/** この形式なら、縮小できなくてもそのまま画面に出せる */
+const DISPLAYABLE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -12,8 +16,11 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   })
 }
 
-/** 長辺を MAX_EDGE に収めた JPEG に変換する。失敗したら元のファイルをそのまま返す */
-export async function shrinkImage(file: File): Promise<Blob> {
+/**
+ * 長辺を MAX_EDGE に収めた JPEG に変換する。
+ * この端末が読めない形式（iPhone の HEIC など）のときは null を返す。
+ */
+export async function shrinkImage(file: File): Promise<Blob | null> {
   const url = URL.createObjectURL(file)
   try {
     const img = await loadImage(url)
@@ -25,16 +32,20 @@ export async function shrinkImage(file: File): Promise<Blob> {
     canvas.width = width
     canvas.height = height
     const ctx = canvas.getContext('2d')
-    if (!ctx) return file
+    if (!ctx) return null
     ctx.drawImage(img, 0, 0, width, height)
 
-    const blob = await new Promise<Blob | null>((resolve) => {
+    return await new Promise<Blob | null>((resolve) => {
       canvas.toBlob(resolve, 'image/jpeg', QUALITY)
     })
-    return blob ?? file
   } catch {
-    return file
+    return null
   } finally {
     URL.revokeObjectURL(url)
   }
+}
+
+/** 縮小できなかった写真を、そのまま保存してよいか */
+export function canShowAsIs(file: File): boolean {
+  return DISPLAYABLE.includes(file.type)
 }

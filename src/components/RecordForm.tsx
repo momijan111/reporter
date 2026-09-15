@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { SLOTS } from '../data/labels'
-import { shrinkImage } from '../lib/image'
+import { canShowAsIs, shrinkImage } from '../lib/image'
 import { isEmptyRecord, newId } from '../lib/record'
 import { store } from '../lib/storage'
 import type { AwakeLevel, DailyRecord, MediaRef, Medicine, SlotKey } from '../types'
@@ -43,10 +43,27 @@ export function RecordForm({
     if (!files || files.length === 0) return
     setBusy(kind === 'video' ? '動画を保存しています…' : '写真を保存しています…')
     setError('')
+
+    // 読み込めなかった写真の名前をためておき、あとでまとめて知らせる
+    const skipped: string[] = []
+
     try {
       for (const file of Array.from(files)) {
-        // 写真は保存前に小さくする。動画はそのまま保存する
-        const blob = kind === 'photo' ? await shrinkImage(file) : file
+        let blob: Blob = file
+
+        if (kind === 'photo') {
+          // 撮った写真も、アルバムから選んだ写真も、同じように小さくする
+          const shrunk = await shrinkImage(file)
+          if (shrunk) {
+            blob = shrunk
+          } else if (canShowAsIs(file)) {
+            blob = file
+          } else {
+            skipped.push(file.name)
+            continue
+          }
+        }
+
         const id = newId()
         await store.saveMedia(id, blob)
         addedMediaIds.current.push(id)
@@ -57,6 +74,13 @@ export function RecordForm({
             { id, kind, name: file.name, type: blob.type || file.type, size: blob.size },
           ],
         }))
+      }
+
+      if (skipped.length > 0) {
+        setError(
+          `この形式の写真は読み込めませんでした（${skipped.join('、')}）。` +
+            'iPhone の場合は「設定 → カメラ → フォーマット」を「互換性優先」にすると保存できます。',
+        )
       }
     } catch {
       setError(
@@ -220,7 +244,22 @@ export function RecordForm({
               }}
             />
           </label>
+          <label className="capture capture-wide">
+            <span aria-hidden="true">🖼</span> アルバムから写真を選ぶ
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                void handleAddMedia(e.target.files, 'photo')
+                e.target.value = ''
+              }}
+            />
+          </label>
         </div>
+        <p className="note-text">
+          選んだ写真も、撮った写真と同じ大きさ（長辺1280px）に小さくしてから保存します。
+        </p>
       </section>
 
       {busy && <p className="notice">{busy}</p>}

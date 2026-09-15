@@ -610,12 +610,17 @@
 }
 
 .capture-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
+/* アルバムから選ぶボタンは横いっぱいに置く */
+.capture-wide {
+  grid-column: 1 / -1;
+}
+
 .capture {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
